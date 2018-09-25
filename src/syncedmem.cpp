@@ -209,7 +209,7 @@ MemBlock MemoryPool::RequestCPU(size_t size) {
     }
   }
   else {
-    CpuKey key{size};
+    CpuKey key{ size };
     auto it = cpu_pool_.lower_bound(key);
     if (it == cpu_pool_.end() || !ShouldBorrowMem(it->second.size, size)) {
       block.device = -1;
@@ -239,7 +239,7 @@ void MemoryPool::ReturnCPU(MemBlock block) {
     head_ = p;
   }
   else {
-    CpuKey key{block.size};
+    CpuKey key{ block.size };
     cpu_pool_.insert(std::make_pair(key, block));
     st_.unused_cpu_mem += block.size;
     DLOG(INFO) << "[CPU] Return " << MemSize(block.size);
@@ -249,7 +249,7 @@ void MemoryPool::ReturnCPU(MemBlock block) {
 MemBlock MemoryPool::RequestGPU(size_t size, int device) {
   MemBlock block;
 #ifdef USE_CUDA
-  GpuKey key{device, size};
+  GpuKey key{ device, size };
   auto it = gpu_pool_.lower_bound(key);
   if (it == gpu_pool_.end() || it->second.device != device ||
       !ShouldBorrowMem(it->second.size, size)) {
@@ -283,7 +283,7 @@ MemBlock MemoryPool::RequestGPU(size_t size, int device) {
 
 void MemoryPool::ReturnGPU(MemBlock block) {
 #ifdef USE_CUDA
-  GpuKey key{block.device, block.size};
+  GpuKey key{ block.device, block.size };
   gpu_pool_.insert(std::make_pair(key, block));
   st_.unused_gpu_mem += block.size;
   DLOG(INFO) << "[GPU] Return " << MemSize(block.size);
@@ -296,7 +296,10 @@ void MemoryPool::Clear() {
   for (auto it = cpu_pool_.begin(); it != cpu_pool_.end(); ++it) {
     MemBlock& block = it->second;
 #ifdef USE_CUDA
-    CUDA_CHECK(cudaFreeHost(block.ptr));
+    cudaError_t err = cudaFree(0);
+    if (err != cudaErrorCudartUnloading) {
+      CUDA_CHECK(cudaFreeHost(block.ptr));
+    }
 #else
     free(block.ptr);
 #endif
